@@ -60,6 +60,44 @@ Check the command:
 grokx --help
 ```
 
+## Skill Install
+
+This repo also ships a portable multi-platform skill bundle under:
+
+```text
+skill-package/
+```
+
+Current adapters:
+
+- Hermes Agent
+- Codex
+- Claude Code
+- OpenClaw-style workspace layout
+
+Use the bundled installer:
+
+```bash
+bash skill-package/scripts/install.sh hermes
+bash skill-package/scripts/install.sh codex
+bash skill-package/scripts/install.sh claude
+bash skill-package/scripts/install.sh openclaw
+bash skill-package/scripts/install.sh all
+```
+
+Default install targets:
+
+- Hermes: `~/.hermes/skills/grokx/`
+- Codex: `~/.agents/skills/grokx/`
+- Claude Code plugin: `~/.claude/plugins/local/grokx-skill/`
+- OpenClaw: `~/.openclaw/workspace/skills/grokx/`
+
+If you update the shared core skill content, resync the platform adapters with:
+
+```bash
+python3 skill-package/scripts/sync_from_core.py
+```
+
 ## Requirements
 
 `grokx` talks to a running `grok2api` service.
