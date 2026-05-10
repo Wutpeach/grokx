@@ -12,10 +12,12 @@ It is designed for a simple workflow:
 
 - `grokx ask "..."` streams a reply from Grok
 - `grokx ask --session <name> "..."` continues a named multi-turn conversation
+- `grokx new` or `grokx /new` starts a fresh conversation without carrying over prior chat context
+- `grokx side` or `grokx /side` asks a temporary branch question from a saved session without altering the main thread
+- `grokx resume` or `grokx /resume` lists saved sessions and continues one without starting over
 - `grokx model current|list|set` inspects or changes the default model
-- `grokx health` checks service health, model listing, and an optional chat round-trip
-- `grokx clearance set <cf_clearance>` updates `grok2api` local clearance config
-- `grokx probe all` runs a read-only batch refresh across the local account pool
+- `grokx model list` probes each listed model and shows chat-capable ones by default
+- `grokx health` checks service health, model listing, and optional chat/model round-trips
 - `grokx session list|clear` manages saved local sessions
 
 ## Install
@@ -109,6 +111,12 @@ List available models:
 grokx model list
 ```
 
+Show every listed model with probe status:
+
+```bash
+grokx model list --all
+```
+
 ## Configuration
 
 ### Recommended local setup
@@ -138,12 +146,10 @@ From that directory, `grokx` can derive:
 | `GROKX_CONFIG_PATH` | JSON config path for persistent CLI settings |
 | `GROKX_SESSIONS_DIR` | Session storage directory, default `~/.config/grokx/sessions` |
 | `GROKX_SESSION_TURN_LIMIT` | Number of recent turns replayed into the model, default `12` |
-| `GROKX_APP_KEY` | Admin key for `/admin/api/*` routes |
 | `GROKX_GROK2API_DIR` | Root directory of a local `grok2api` install |
 | `GROKX_GROK2API_ENV` | Explicit path to the `grok2api` `.env` file |
 | `GROKX_GROK2API_CONFIG` | Explicit path to `config.toml` |
 | `GROKX_GROK2API_DB` | Explicit path to `accounts.db` |
-| `GROKX_RESTART_CMD` | Optional shell command to restart `grok2api` after config changes |
 
 ## Usage
 
@@ -189,6 +195,30 @@ grokx session list
 grokx session clear repo-help
 ```
 
+Start a fresh conversation in the same repo without reusing previous chat context:
+
+```bash
+grokx new "从零开始审查这个问题"
+grokx new --session repo-reset "重新开始，我们换个思路"
+grokx /new --session repo-reset --force "清空旧上下文，开始新对话"
+```
+
+Resume from the saved-session list without starting a new conversation:
+
+```bash
+grokx resume
+grokx resume repo-help "继续，帮我把刚才的方案补完整"
+grokx /resume repo-help "继续处理上一次的问题"
+```
+
+Ask a side question from an existing session without writing that branch back into the main conversation:
+
+```bash
+grokx side
+grokx side repo-help "只讨论一下测试策略，不要改主线程上下文"
+grokx /side repo-help "先单独推演一下这个 edge case"
+```
+
 ### Model Management
 
 Show the current default model:
@@ -202,6 +232,16 @@ List models from `grok2api`:
 ```bash
 grokx model list
 ```
+
+By default, `grokx model list` only prints models that successfully complete a chat request.
+Use `--all` to include failures with their probe status, or `--json` for structured output:
+
+```bash
+grokx model list --all
+grokx model list --json
+```
+
+`grokx model list` also refreshes a local probe cache. After that, `grokx model set <model>` only accepts models that are present in the cache and marked chat-capable, which keeps known-bad models out of your default selection.
 
 Persist a new default model:
 
@@ -220,37 +260,12 @@ By default, this is stored in:
 ```bash
 grokx health
 grokx health --with-chat
+grokx health --probe-models
+grokx health --with-chat --probe-models
 grokx health --with-chat --json
 ```
 
-### Clearance Management
-
-Update `cf_clearance` in the local `grok2api` config:
-
-```bash
-grokx clearance set '<cf_clearance>'
-```
-
-Update clearance and user-agent together:
-
-```bash
-grokx clearance set '<cf_clearance>' --user-agent 'Mozilla/5.0 ...'
-```
-
-Restart `grok2api` after the config update:
-
-```bash
-grokx clearance set '<cf_clearance>' --restart
-```
-
-### Pool Probing
-
-Run a read-only batch refresh across active accounts:
-
-```bash
-grokx probe all
-grokx probe all --concurrency 5 --json
-```
+When you use `--probe-models`, the probe results are written into the local `grokx` config so later `model set` calls can reject models that previously failed.
 
 ## Typical Workflows
 

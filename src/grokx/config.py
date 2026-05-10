@@ -84,6 +84,10 @@ def save_local_config(path: Path, patch: dict[str, Any]) -> dict[str, Any]:
     return current
 
 
+def load_local_config(path: Path) -> dict[str, Any]:
+    return _read_local_config(path)
+
+
 def _load_model(local_config: dict[str, Any]) -> str:
     local_model = local_config.get("model")
     if isinstance(local_model, str) and local_model.strip():

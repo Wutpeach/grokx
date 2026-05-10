@@ -86,6 +86,23 @@ class SessionStore:
             names.add(path.name.removesuffix(".meta.json"))
         return sorted(names)
 
+    def list_session_states(self) -> list[SessionState]:
+        states: list[SessionState] = []
+        for name in self.list_sessions():
+            meta = self._read_meta(name)
+            states.append(
+                SessionState(
+                    name=name,
+                    system_prompt=str(meta.get("system_prompt") or ""),
+                    created_at=str(meta.get("created_at") or ""),
+                    updated_at=str(meta.get("updated_at") or ""),
+                    last_model=str(meta.get("last_model") or ""),
+                    turns=int(meta.get("turns") or 0),
+                    messages=None,
+                )
+            )
+        return sorted(states, key=lambda item: (item.updated_at, item.created_at, item.name), reverse=True)
+
     def load_session(self, name: str, *, turn_limit: int | None = None) -> SessionState:
         with self._locked(name):
             meta = self._read_meta(name)

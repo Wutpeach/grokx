@@ -113,19 +113,46 @@ class GrokxClient:
         data = payload.get("data", [])
         return data if isinstance(data, list) else []
 
-    def health(self, *, include_chat: bool = False) -> dict:
+    def probe_model(self, model_id: str) -> dict:
+        try:
+            ask_result = self.ask("Reply with OK", model=model_id)
+        except RuntimeError as exc:
+            return {"id": model_id, "chat_ok": False, "error": str(exc)}
+        text = ask_result["text"].strip()
+        if not text:
+            return {"id": model_id, "chat_ok": False, "error": "Empty response"}
+        return {"id": model_id, "chat_ok": True, "error": ""}
+
+    def probe_models(self, models: list[dict] | None = None) -> list[dict]:
+        model_items = models if models is not None else self.list_models()
+        results: list[dict] = []
+        for item in model_items:
+            model_id = item.get("id")
+            if not model_id:
+                continue
+            result = dict(item)
+            result.update(self.probe_model(model_id))
+            results.append(result)
+        return results
+
+    def health(self, *, include_chat: bool = False, include_model_probes: bool = False) -> dict:
         base = self.settings.base_url.removesuffix("/v1")
         health_payload = self._json_request(f"{base}/health")
         models_payload = self._json_request(f"{self.settings.base_url}/models")
+        model_items = models_payload.get("data", [])
         result = {
             "health": health_payload.get("status", "unknown"),
-            "models_ok": isinstance(models_payload.get("data"), list),
-            "model_count": len(models_payload.get("data", [])),
+            "models_ok": isinstance(model_items, list),
+            "model_count": len(model_items if isinstance(model_items, list) else []),
             "chat_ok": False,
         }
         if include_chat:
             ask_result = self.ask("Reply with exactly OK")
             result["chat_ok"] = ask_result["text"].strip() == "OK"
+        if include_model_probes and isinstance(model_items, list):
+            model_probes = self.probe_models(model_items)
+            result["usable_model_count"] = sum(1 for item in model_probes if item.get("chat_ok"))
+            result["model_probes"] = model_probes
         return result
 
 
