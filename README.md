@@ -42,6 +42,16 @@ cd grokx
 python -m pip install -e .
 ```
 
+### Development setup with uv
+
+```bash
+git clone https://github.com/Wutpeach/grokx.git
+cd grokx
+uv venv
+uv sync --extra dev
+source .venv/bin/activate
+```
+
 Check the command:
 
 ```bash
@@ -272,6 +282,14 @@ Build a wheel:
 
 ```bash
 python -m build
+```
+
+If you use `uv`, a typical local development loop is:
+
+```bash
+cd grokx
+source .venv/bin/activate
+pytest -q
 ```
 
 ## License
