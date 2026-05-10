@@ -467,3 +467,43 @@ def test_model_set_rejects_cached_failed_model(tmp_path, monkeypatch):
         assert str(exc) == "Model 'grok-4.20-expert' failed the last chat probe: HTTP 400: unsupported model"
     else:
         raise AssertionError("Expected SystemExit")
+
+
+def test_config_show_prints_effective_connection_settings(monkeypatch, capsys):
+    monkeypatch.setattr(
+        cli,
+        "load_settings",
+        lambda: Settings(base_url="https://example.com/v1", api_key="secret"),
+    )
+
+    exit_code = cli.main(["config", "show"])
+
+    assert exit_code == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "base_url": "https://example.com/v1",
+        "api_key_configured": True,
+    }
+
+
+def test_config_set_base_url_persists_value(tmp_path, monkeypatch, capsys):
+    config_path = tmp_path / "config.json"
+    monkeypatch.setenv("GROKX_CONFIG_PATH", str(config_path))
+    monkeypatch.setattr(cli, "load_settings", lambda: Settings(config_path=config_path))
+
+    exit_code = cli.main(["config", "set-base-url", "https://example.com/v1"])
+
+    assert exit_code == 0
+    assert json.loads(config_path.read_text()) == {"base_url": "https://example.com/v1"}
+    assert capsys.readouterr().out.strip() == "https://example.com/v1"
+
+
+def test_config_set_api_key_persists_value(tmp_path, monkeypatch, capsys):
+    config_path = tmp_path / "config.json"
+    monkeypatch.setenv("GROKX_CONFIG_PATH", str(config_path))
+    monkeypatch.setattr(cli, "load_settings", lambda: Settings(config_path=config_path))
+
+    exit_code = cli.main(["config", "set-api-key", "secret-key"])
+
+    assert exit_code == 0
+    assert json.loads(config_path.read_text()) == {"api_key": "secret-key"}
+    assert capsys.readouterr().out.strip() == "api_key_configured=true"

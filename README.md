@@ -15,6 +15,7 @@ It is designed for a simple workflow:
 - `grokx new` or `grokx /new` starts a fresh conversation without carrying over prior chat context
 - `grokx side` or `grokx /side` asks a temporary branch question from a saved session without altering the main thread
 - `grokx resume` or `grokx /resume` lists saved sessions and continues one without starting over
+- `grokx config show|set-base-url|set-api-key` inspects or persists connection settings
 - `grokx model current|list|set` inspects or changes the default model
 - `grokx model list` probes each listed model and shows chat-capable ones by default
 - `grokx health` checks service health, model listing, and optional chat/model round-trips
@@ -133,6 +134,13 @@ export GROKX_BASE_URL=http://127.0.0.1:8000/v1
 export GROKX_API_KEY=your_grok2api_api_key
 ```
 
+Or persist them once with the CLI:
+
+```bash
+grokx config set-base-url https://your-host.example/v1
+grokx config set-api-key your_grok2api_api_key
+```
+
 Ask a question:
 
 ```bash
@@ -190,6 +198,25 @@ From that directory, `grokx` can derive:
 | `GROKX_GROK2API_ENV` | Explicit path to the `grok2api` `.env` file |
 | `GROKX_GROK2API_CONFIG` | Explicit path to `config.toml` |
 | `GROKX_GROK2API_DB` | Explicit path to `accounts.db` |
+
+### Persistent CLI Config
+
+`grokx` stores local persistent settings in `~/.config/grokx/config.json` unless you override the path with `GROKX_CONFIG_PATH`.
+
+Persist connection settings:
+
+```bash
+grokx config set-base-url https://your-host.example/v1
+grokx config set-api-key your_grok2api_api_key
+```
+
+Inspect effective settings:
+
+```bash
+grokx config show
+```
+
+Environment variables still take precedence over values saved in `config.json`. This lets scripts and CI override your local defaults safely.
 
 ## Usage
 

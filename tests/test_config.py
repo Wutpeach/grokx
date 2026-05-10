@@ -81,3 +81,33 @@ def test_load_settings_supports_explicit_sessions_dir(tmp_path, monkeypatch):
     settings = load_settings()
 
     assert settings.sessions_dir == sessions_dir
+
+
+def test_load_settings_reads_saved_base_url_and_api_key(tmp_path, monkeypatch):
+    config_path = tmp_path / "config.json"
+    config_path.write_text('{"base_url": "https://example.com/v1", "api_key": "saved-key"}')
+
+    monkeypatch.setenv("GROKX_CONFIG_PATH", str(config_path))
+    monkeypatch.delenv("GROKX_BASE_URL", raising=False)
+    monkeypatch.delenv("GROKX_API_KEY", raising=False)
+    monkeypatch.delenv("GROKX_GROK2API_DIR", raising=False)
+
+    settings = load_settings()
+
+    assert settings.base_url == "https://example.com/v1"
+    assert settings.api_key == "saved-key"
+
+
+def test_load_settings_prefers_env_base_url_and_api_key_over_saved_values(tmp_path, monkeypatch):
+    config_path = tmp_path / "config.json"
+    config_path.write_text('{"base_url": "https://saved.example/v1", "api_key": "saved-key"}')
+
+    monkeypatch.setenv("GROKX_CONFIG_PATH", str(config_path))
+    monkeypatch.setenv("GROKX_BASE_URL", "https://env.example/v1")
+    monkeypatch.setenv("GROKX_API_KEY", "env-key")
+    monkeypatch.delenv("GROKX_GROK2API_DIR", raising=False)
+
+    settings = load_settings()
+
+    assert settings.base_url == "https://env.example/v1"
+    assert settings.api_key == "env-key"

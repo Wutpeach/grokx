@@ -75,6 +75,14 @@ def _build_parser() -> argparse.ArgumentParser:
     model_set = model_sub.add_parser("set", help="Persist a new default model")
     model_set.add_argument("model")
 
+    config_p = sub.add_parser("config", help="Inspect or persist CLI connection settings")
+    config_sub = config_p.add_subparsers(dest="config_command", required=True)
+    config_sub.add_parser("show", help="Print the effective base URL and API key status")
+    config_base = config_sub.add_parser("set-base-url", help="Persist a new default base URL")
+    config_base.add_argument("base_url")
+    config_api = config_sub.add_parser("set-api-key", help="Persist a new default API key")
+    config_api.add_argument("api_key")
+
     session_p = sub.add_parser("session", help="Manage persistent chat sessions")
     session_sub = session_p.add_subparsers(dest="session_command", required=True)
     session_sub.add_parser("list", help="List saved session names")
@@ -413,6 +421,28 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise SystemExit(f"Model {args.model!r} failed the last chat probe: {error_message}")
         save_local_config(settings.config_path, {"model": args.model})
         print(args.model)
+        return 0
+
+    if args.command == "config" and args.config_command == "show":
+        payload = {
+            "base_url": settings.base_url,
+            "api_key_configured": bool(settings.api_key),
+        }
+        print(json.dumps(payload, ensure_ascii=False))
+        return 0
+
+    if args.command == "config" and args.config_command == "set-base-url":
+        if settings.config_path is None:
+            raise SystemExit("Missing grokx config path")
+        save_local_config(settings.config_path, {"base_url": args.base_url})
+        print(args.base_url)
+        return 0
+
+    if args.command == "config" and args.config_command == "set-api-key":
+        if settings.config_path is None:
+            raise SystemExit("Missing grokx config path")
+        save_local_config(settings.config_path, {"api_key": args.api_key})
+        print("api_key_configured=true")
         return 0
 
     if args.command == "session" and args.session_command == "list":

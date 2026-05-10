@@ -96,6 +96,26 @@ def _load_model(local_config: dict[str, Any]) -> str:
     return env_model or DEFAULT_MODEL
 
 
+def _load_base_url(local_config: dict[str, Any]) -> str:
+    env_base_url = os.getenv("GROKX_BASE_URL", "").strip()
+    if env_base_url:
+        return env_base_url
+    local_base_url = local_config.get("base_url")
+    if isinstance(local_base_url, str) and local_base_url.strip():
+        return local_base_url.strip()
+    return DEFAULT_BASE_URL
+
+
+def _load_api_key(local_config: dict[str, Any], dotenv: dict[str, str]) -> str:
+    env_api_key = os.getenv("GROKX_API_KEY", "").strip()
+    if env_api_key:
+        return env_api_key
+    local_api_key = local_config.get("api_key")
+    if isinstance(local_api_key, str) and local_api_key.strip():
+        return local_api_key.strip()
+    return dotenv.get("GROK_APP_API_KEY", "")
+
+
 def load_settings() -> Settings:
     grok2api_dir = _discover_grok2api_dir()
     grok2api_env_path = Path(os.getenv("GROKX_GROK2API_ENV", "")).expanduser() if os.getenv("GROKX_GROK2API_ENV") else None
@@ -124,8 +144,8 @@ def load_settings() -> Settings:
         grok2api_db_path = str(grok2api_dir / "data" / "accounts.db")
 
     return Settings(
-        base_url=os.getenv("GROKX_BASE_URL", DEFAULT_BASE_URL),
-        api_key=os.getenv("GROKX_API_KEY") or dotenv.get("GROK_APP_API_KEY", ""),
+        base_url=_load_base_url(local_config),
+        api_key=_load_api_key(local_config, dotenv),
         model=_load_model(local_config),
         timeout=float(os.getenv("GROKX_TIMEOUT", str(DEFAULT_TIMEOUT))),
         app_key=os.getenv("GROKX_APP_KEY") or dotenv.get("GROK_APP_APP_KEY", ""),
