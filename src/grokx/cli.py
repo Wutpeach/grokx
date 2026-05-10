@@ -17,20 +17,20 @@ def _build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     ask_p = sub.add_parser("ask", help="Ask Grok a question")
-    ask_p.add_argument("prompt")
-    ask_p.add_argument("--model")
-    ask_p.add_argument("--system")
+    ask_p.add_argument("prompt", help="Prompt text to send")
+    ask_p.add_argument("--model", help="Override the default model for this request")
+    ask_p.add_argument("--system", help="Optional system prompt for this request")
     ask_p.add_argument("--session", help="Persist and reuse conversation context with a named session")
-    ask_p.add_argument("--json", action="store_true")
+    ask_p.add_argument("--json", action="store_true", help="Print the raw JSON response")
     ask_p.add_argument("--no-stream", action="store_true", help="Wait for a full non-streaming JSON response")
 
     def _add_new_parser(name: str, help_text: str) -> None:
         new_p = sub.add_parser(name, help=help_text)
-        new_p.add_argument("prompt")
+        new_p.add_argument("prompt", help="Prompt text to send")
         new_p.add_argument("--session", help="Create and use a fresh named session")
-        new_p.add_argument("--model")
-        new_p.add_argument("--system")
-        new_p.add_argument("--json", action="store_true")
+        new_p.add_argument("--model", help="Override the default model for this request")
+        new_p.add_argument("--system", help="Optional system prompt for this request")
+        new_p.add_argument("--json", action="store_true", help="Print the raw JSON response")
         new_p.add_argument("--no-stream", action="store_true", help="Wait for a full non-streaming JSON response")
         new_p.add_argument("--force", action="store_true", help="Replace an existing session with the same name")
 
@@ -39,11 +39,12 @@ def _build_parser() -> argparse.ArgumentParser:
 
     def _add_side_parser(name: str, help_text: str) -> None:
         side_p = sub.add_parser(name, help=help_text)
-        side_p.add_argument("name", nargs="?")
-        side_p.add_argument("prompt", nargs="?")
-        side_p.add_argument("--model")
-        side_p.add_argument("--system")
-        side_p.add_argument("--json", action="store_true")
+        side_p.add_argument("name", nargs="?", help="Existing session name")
+        side_p.add_argument("prompt", nargs="?", help="Prompt text to send")
+        side_p.add_argument("--list", action="store_true", help="List saved sessions with summary details")
+        side_p.add_argument("--model", help="Override the default model for this request")
+        side_p.add_argument("--system", help="Optional system prompt for this request")
+        side_p.add_argument("--json", action="store_true", help="Print JSON when listing or when returning a response")
         side_p.add_argument("--no-stream", action="store_true", help="Wait for a full non-streaming JSON response")
 
     _add_side_parser("side", "Ask a temporary side question from a saved session without mutating it")
@@ -51,11 +52,12 @@ def _build_parser() -> argparse.ArgumentParser:
 
     def _add_resume_parser(name: str, help_text: str) -> None:
         resume_p = sub.add_parser(name, help=help_text)
-        resume_p.add_argument("name", nargs="?")
-        resume_p.add_argument("prompt", nargs="?")
-        resume_p.add_argument("--model")
-        resume_p.add_argument("--system")
-        resume_p.add_argument("--json", action="store_true")
+        resume_p.add_argument("name", nargs="?", help="Existing session name")
+        resume_p.add_argument("prompt", nargs="?", help="Prompt text to send")
+        resume_p.add_argument("--list", action="store_true", help="List saved sessions with summary details")
+        resume_p.add_argument("--model", help="Override the default model for this request")
+        resume_p.add_argument("--system", help="Optional system prompt for this request")
+        resume_p.add_argument("--json", action="store_true", help="Print JSON when listing or when returning a response")
         resume_p.add_argument("--no-stream", action="store_true", help="Wait for a full non-streaming JSON response")
 
     _add_resume_parser("resume", "Resume a saved chat session")
@@ -85,7 +87,9 @@ def _build_parser() -> argparse.ArgumentParser:
 
     session_p = sub.add_parser("session", help="Manage persistent chat sessions")
     session_sub = session_p.add_subparsers(dest="session_command", required=True)
-    session_sub.add_parser("list", help="List saved session names")
+    session_list = session_sub.add_parser("list", help="List saved sessions")
+    session_list.add_argument("--verbose", action="store_true", help="Show summary details instead of names only")
+    session_list.add_argument("--json", action="store_true", help="Print saved session summaries as JSON")
     session_clear = session_sub.add_parser("clear", help="Delete a saved session")
     session_clear.add_argument("name")
 
@@ -180,6 +184,24 @@ def _print_session_summaries(store: SessionStore, *, as_json: bool) -> None:
         print(
             f"{item['name']}\tturns={item['turns']}\tupdated_at={item['updated_at'] or '-'}\tmodel={item['last_model'] or '-'}"
         )
+
+
+def _print_session_names(store: SessionStore) -> None:
+    for name in store.list_sessions():
+        print(name)
+
+
+def _print_legacy_session_listing_hint(command_name: str) -> None:
+    print(
+        f"`grokx {command_name}` without arguments currently lists saved sessions for compatibility. "
+        f"Prefer `grokx {command_name} --list` or `grokx session list --verbose`.",
+        file=sys.stderr,
+    )
+
+
+def _validate_list_mode(command_name: str, *, list_requested: bool, name: str | None, prompt: str | None) -> None:
+    if list_requested and (name or prompt):
+        raise SystemExit(f"Cannot combine `grokx {command_name} --list` with a session name or prompt.")
 
 
 def _run_saved_session_prompt(
@@ -326,7 +348,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command in {"side", "/side"}:
         store = _require_sessions_dir(settings)
+        _validate_list_mode("side", list_requested=args.list, name=args.name, prompt=args.prompt)
+        if args.list:
+            _print_session_summaries(store, as_json=args.json)
+            return 0
         if not args.name:
+            _print_legacy_session_listing_hint("side")
             _print_session_summaries(store, as_json=args.json)
             return 0
         if args.name not in store.list_sessions():
@@ -346,7 +373,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command in {"resume", "/resume"}:
         store = _require_sessions_dir(settings)
+        _validate_list_mode("resume", list_requested=args.list, name=args.name, prompt=args.prompt)
+        if args.list:
+            _print_session_summaries(store, as_json=args.json)
+            return 0
         if not args.name:
+            _print_legacy_session_listing_hint("resume")
             _print_session_summaries(store, as_json=args.json)
             return 0
         if args.name not in store.list_sessions():
@@ -446,8 +478,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "session" and args.session_command == "list":
-        for name in _require_sessions_dir(settings).list_sessions():
-            print(name)
+        store = _require_sessions_dir(settings)
+        if args.json or args.verbose:
+            _print_session_summaries(store, as_json=args.json)
+        else:
+            _print_session_names(store)
         return 0
 
     if args.command == "session" and args.session_command == "clear":

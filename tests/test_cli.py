@@ -199,6 +199,34 @@ def test_session_list_and_clear_commands(monkeypatch, tmp_path, capsys):
     assert capsys.readouterr().out.strip() == ""
 
 
+def test_session_list_verbose_shows_summary(monkeypatch, tmp_path, capsys):
+    dummy = DummyClient(responses=["FIRST"])
+    settings = Settings(api_key="k", sessions_dir=tmp_path / "sessions", session_turn_limit=12)
+    monkeypatch.setattr(cli, "build_client", lambda settings: dummy)
+    monkeypatch.setattr(cli, "load_settings", lambda: settings)
+
+    assert cli.main(["ask", "hello world", "--no-stream", "--session", "demo"]) == 0
+    capsys.readouterr()
+
+    assert cli.main(["session", "list", "--verbose"]) == 0
+    assert capsys.readouterr().out.strip().splitlines()[0].startswith("demo\tturns=1\t")
+
+
+def test_session_list_json_shows_summary_payload(monkeypatch, tmp_path, capsys):
+    dummy = DummyClient(responses=["FIRST"])
+    settings = Settings(api_key="k", sessions_dir=tmp_path / "sessions", session_turn_limit=12)
+    monkeypatch.setattr(cli, "build_client", lambda settings: dummy)
+    monkeypatch.setattr(cli, "load_settings", lambda: settings)
+
+    assert cli.main(["ask", "hello world", "--no-stream", "--session", "demo"]) == 0
+    capsys.readouterr()
+
+    assert cli.main(["session", "list", "--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload[0]["name"] == "demo"
+    assert payload[0]["turns"] == 1
+
+
 def test_resume_lists_saved_sessions(monkeypatch, tmp_path, capsys):
     dummy = DummyClient(responses=["FIRST", "SECOND"])
     settings = Settings(api_key="k", sessions_dir=tmp_path / "sessions", session_turn_limit=12)
@@ -211,10 +239,39 @@ def test_resume_lists_saved_sessions(monkeypatch, tmp_path, capsys):
     capsys.readouterr()
 
     assert cli.main(["resume"]) == 0
-    lines = capsys.readouterr().out.strip().splitlines()
+    captured = capsys.readouterr()
+    lines = captured.out.strip().splitlines()
     assert len(lines) == 2
     assert any(line.startswith("demo\tturns=1\t") for line in lines)
     assert any(line.startswith("alpha\tturns=1\t") for line in lines)
+    assert "Prefer `grokx resume --list` or `grokx session list --verbose`." in captured.err
+
+
+def test_resume_list_flag_lists_saved_sessions(monkeypatch, tmp_path, capsys):
+    dummy = DummyClient(responses=["FIRST"])
+    settings = Settings(api_key="k", sessions_dir=tmp_path / "sessions", session_turn_limit=12)
+    monkeypatch.setattr(cli, "build_client", lambda settings: dummy)
+    monkeypatch.setattr(cli, "load_settings", lambda: settings)
+
+    assert cli.main(["ask", "hello world", "--no-stream", "--session", "demo"]) == 0
+    capsys.readouterr()
+
+    assert cli.main(["resume", "--list"]) == 0
+    captured = capsys.readouterr()
+    assert captured.out.strip().splitlines()[0].startswith("demo\tturns=1\t")
+    assert captured.err.strip() == ""
+
+
+def test_resume_list_flag_rejects_name_or_prompt(monkeypatch, tmp_path):
+    settings = Settings(api_key="k", sessions_dir=tmp_path / "sessions", session_turn_limit=12)
+    monkeypatch.setattr(cli, "load_settings", lambda: settings)
+
+    try:
+        cli.main(["resume", "--list", "demo"])
+    except SystemExit as exc:
+        assert str(exc) == "Cannot combine `grokx resume --list` with a session name or prompt."
+    else:
+        raise AssertionError("Expected SystemExit")
 
 
 def test_resume_command_continues_named_session(monkeypatch, tmp_path, capsys):
@@ -267,7 +324,36 @@ def test_side_lists_saved_sessions(monkeypatch, tmp_path, capsys):
     capsys.readouterr()
 
     assert cli.main(["side"]) == 0
-    assert capsys.readouterr().out.strip().splitlines()[0].startswith("demo\tturns=1\t")
+    captured = capsys.readouterr()
+    assert captured.out.strip().splitlines()[0].startswith("demo\tturns=1\t")
+    assert "Prefer `grokx side --list` or `grokx session list --verbose`." in captured.err
+
+
+def test_side_list_flag_lists_saved_sessions(monkeypatch, tmp_path, capsys):
+    dummy = DummyClient(responses=["FIRST"])
+    settings = Settings(api_key="k", sessions_dir=tmp_path / "sessions", session_turn_limit=12)
+    monkeypatch.setattr(cli, "build_client", lambda settings: dummy)
+    monkeypatch.setattr(cli, "load_settings", lambda: settings)
+
+    assert cli.main(["ask", "hello world", "--no-stream", "--session", "demo"]) == 0
+    capsys.readouterr()
+
+    assert cli.main(["side", "--list"]) == 0
+    captured = capsys.readouterr()
+    assert captured.out.strip().splitlines()[0].startswith("demo\tturns=1\t")
+    assert captured.err.strip() == ""
+
+
+def test_side_list_flag_rejects_name_or_prompt(monkeypatch, tmp_path):
+    settings = Settings(api_key="k", sessions_dir=tmp_path / "sessions", session_turn_limit=12)
+    monkeypatch.setattr(cli, "load_settings", lambda: settings)
+
+    try:
+        cli.main(["side", "--list", "demo"])
+    except SystemExit as exc:
+        assert str(exc) == "Cannot combine `grokx side --list` with a session name or prompt."
+    else:
+        raise AssertionError("Expected SystemExit")
 
 
 def test_side_command_uses_saved_context_without_mutating_session(monkeypatch, tmp_path, capsys):
