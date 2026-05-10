@@ -134,6 +134,117 @@ Default local paths:
 - prefer `side` for branch analysis
 - run `grokx health` before assuming a prompt or model failure
 
+## Agent Workflow
+
+When an agent uses `grokx` for design review, troubleshooting, or iterative planning, treat Grok consultation as a managed session workflow rather than a series of unrelated one-shot prompts.
+
+### 1. Create a stable main session
+
+For the first Grok consultation on a task, create or choose a durable main session name and keep reusing it for the same task.
+
+Recommended naming shape:
+
+```text
+grokx-<repo-or-project>-<task-slug>-main
+```
+
+Examples:
+
+```bash
+grokx ask --session grokx-myrepo-auth-main --no-stream "Review this implementation plan"
+grokx ask --session grokx-myrepo-auth-main --no-stream "Here is the error we hit. Suggest likely causes."
+```
+
+Do not switch session names casually during the same task. Reuse the same main session until you intentionally roll the context forward.
+
+### 2. Use `side` for temporary branches
+
+When the agent wants a narrow exploration that should not pollute the main consultation record, use `grokx side`.
+
+Typical cases:
+
+- compare one alternative design
+- test an edge-case hypothesis
+- ask a narrow debugging question
+- challenge the current direction without changing the main thread
+
+Example:
+
+```bash
+grokx side grokx-myrepo-auth-main --no-stream "Assume the root cause is state leakage. What evidence would support that?"
+```
+
+### 3. Watch for context saturation
+
+Do not keep extending the same Grok session forever. Grok still depends on a bounded replay window, and the highest-quality answers usually come from dense, well-curated context rather than a long raw transcript.
+
+Evaluate whether to roll forward into a new session when any of these are true:
+
+- the main consultation has reached roughly 5 to 8 substantial Grok turns
+- the task has accumulated enough detail that older context is becoming important again
+- Grok starts repeating itself, drifting, or missing previously established constraints
+- the discussion has shifted from broad exploration to converging on a final solution
+- the agent has already tried several alternatives and needs a cleaner decision-focused context
+
+Do not treat 5 or 10 turns as a rigid limit. The real signal is context quality, not a fixed count.
+
+### 4. Roll forward with a structured summary
+
+When context saturation is approaching, create a structured summary first, then start a fresh session with that summary as the new anchor context.
+
+The roll-forward summary should include:
+
+- project or task background
+- current objective
+- confirmed constraints
+- relevant implementation details
+- options already considered
+- why rejected options failed
+- the strongest remaining candidate solution
+- unresolved questions that Grok should focus on next
+
+The summary should be compressed, factual, and decision-oriented. Do not dump the whole transcript back into the next session.
+
+Example pattern:
+
+```bash
+grokx new --session grokx-myrepo-auth-main-r2 --no-stream "Context summary:
+Project: auth refactor for myrepo.
+Goal: make token refresh race-safe.
+Constraints: cannot change external API; Redis is available; background workers are not.
+Tried: optimistic locking only, rejected because concurrent refreshes still duplicate writes.
+Tried: per-user in-memory lock, rejected because app runs on multiple instances.
+Current best option: Redis-based short TTL lock plus idempotent refresh write path.
+Open questions: failure recovery, lock expiry tuning, and whether a compare-and-swap write is still needed.
+Please critique this candidate design and identify the main failure modes."
+```
+
+### 5. Keep session lineage explicit
+
+When rolling forward, use a visible lineage in the session name rather than overwriting the old thread immediately.
+
+Recommended progression:
+
+```text
+grokx-myrepo-auth-main
+grokx-myrepo-auth-main-r2
+grokx-myrepo-auth-main-r3
+```
+
+This preserves the research trail while letting the active consultation move into a cleaner context window.
+
+Only use `grokx new --force` on an existing session name when the old thread is no longer useful and the agent intentionally wants to replace it.
+
+### 6. Default decision policy for agents
+
+Use this decision order:
+
+1. If the task has no existing Grok consultation thread, start or select a main named session.
+2. If the task is continuing the same line of reasoning, reuse the main session.
+3. If the question is exploratory and should not modify the main consultation history, use `side`.
+4. If the main consultation context is getting diluted, summarize and `new` a successor session.
+5. If the entire previous line of thought should be discarded, use `new --force`.
+
 ## Troubleshooting
 
 If `grokx` fails:
