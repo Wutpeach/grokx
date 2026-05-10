@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "grokx"
+version = "0.1.0"
+description = "Portable CLI for talking to a local grok2api service"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "Mabel + Hermes" }
+]
+keywords = ["grok", "grok2api", "cli", "openai-compatible"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "License :: OSI Approved :: MIT License",
+  "Environment :: Console",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+grokx = "grokx.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/grokx"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
