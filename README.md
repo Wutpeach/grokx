@@ -98,6 +98,8 @@ If you update the shared core skill content, resync the platform adapters with:
 python3 skill-package/scripts/sync_from_core.py
 ```
 
+To resync the project-local Codex skill in this repo, run `./scripts/sync_project_skill.sh`.
+
 ## Requirements
 
 `grokx` talks to a running `grok2api` service.
