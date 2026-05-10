@@ -300,6 +300,33 @@ def test_resume_command_continues_named_session(monkeypatch, tmp_path, capsys):
     )
 
 
+def test_resume_command_supports_session_flag(monkeypatch, tmp_path, capsys):
+    dummy = DummyClient(responses=["FIRST", "SECOND"])
+    monkeypatch.setattr(cli, "build_client", lambda settings: dummy)
+    monkeypatch.setattr(cli, "load_settings", lambda: Settings(api_key="k", sessions_dir=tmp_path / "sessions", session_turn_limit=12))
+
+    assert cli.main(["ask", "hello world", "--no-stream", "--session", "demo"]) == 0
+    capsys.readouterr()
+
+    assert cli.main(["resume", "demo", "follow up", "--session", "demo", "--no-stream"]) == 0
+    assert capsys.readouterr().out.strip() == "SECOND"
+
+
+def test_resume_command_rejects_conflicting_session_selectors(monkeypatch, tmp_path):
+    settings = Settings(api_key="k", sessions_dir=tmp_path / "sessions", session_turn_limit=12)
+    monkeypatch.setattr(cli, "load_settings", lambda: settings)
+
+    try:
+        cli.main(["resume", "demo", "follow up", "--session", "alpha"])
+    except SystemExit as exc:
+        assert str(exc) == (
+            "Conflicting session selectors for `grokx resume`. "
+            "Use either the positional session name or `--session`, not both."
+        )
+    else:
+        raise AssertionError("Expected SystemExit")
+
+
 def test_slash_resume_alias_continues_named_session(monkeypatch, tmp_path, capsys):
     dummy = DummyClient(responses=["FIRST", "SECOND"])
     monkeypatch.setattr(cli, "build_client", lambda settings: dummy)
@@ -398,6 +425,34 @@ def test_side_command_uses_saved_context_without_mutating_session(monkeypatch, t
             {"role": "user", "content": "follow up"},
         ],
     )
+
+
+def test_side_command_supports_session_flag(monkeypatch, tmp_path, capsys):
+    dummy = DummyClient(responses=["FIRST", "SECOND"])
+    settings = Settings(api_key="k", sessions_dir=tmp_path / "sessions", session_turn_limit=12)
+    monkeypatch.setattr(cli, "build_client", lambda settings: dummy)
+    monkeypatch.setattr(cli, "load_settings", lambda: settings)
+
+    assert cli.main(["ask", "hello world", "--no-stream", "--session", "demo"]) == 0
+    capsys.readouterr()
+
+    assert cli.main(["side", "demo", "temporary branch", "--session", "demo", "--no-stream"]) == 0
+    assert capsys.readouterr().out.strip() == "SECOND"
+
+
+def test_side_command_rejects_conflicting_session_selectors(monkeypatch, tmp_path):
+    settings = Settings(api_key="k", sessions_dir=tmp_path / "sessions", session_turn_limit=12)
+    monkeypatch.setattr(cli, "load_settings", lambda: settings)
+
+    try:
+        cli.main(["side", "demo", "temporary branch", "--session", "alpha"])
+    except SystemExit as exc:
+        assert str(exc) == (
+            "Conflicting session selectors for `grokx side`. "
+            "Use either the positional session name or `--session`, not both."
+        )
+    else:
+        raise AssertionError("Expected SystemExit")
 
 
 def test_slash_side_alias_works(monkeypatch, tmp_path, capsys):

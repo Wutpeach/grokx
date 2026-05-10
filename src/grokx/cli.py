@@ -42,6 +42,7 @@ def _build_parser() -> argparse.ArgumentParser:
         side_p.add_argument("name", nargs="?", help="Existing session name")
         side_p.add_argument("prompt", nargs="?", help="Prompt text to send")
         side_p.add_argument("--list", action="store_true", help="List saved sessions with summary details")
+        side_p.add_argument("--session", help="Existing session name")
         side_p.add_argument("--model", help="Override the default model for this request")
         side_p.add_argument("--system", help="Optional system prompt for this request")
         side_p.add_argument("--json", action="store_true", help="Print JSON when listing or when returning a response")
@@ -55,6 +56,7 @@ def _build_parser() -> argparse.ArgumentParser:
         resume_p.add_argument("name", nargs="?", help="Existing session name")
         resume_p.add_argument("prompt", nargs="?", help="Prompt text to send")
         resume_p.add_argument("--list", action="store_true", help="List saved sessions with summary details")
+        resume_p.add_argument("--session", help="Existing session name")
         resume_p.add_argument("--model", help="Override the default model for this request")
         resume_p.add_argument("--system", help="Optional system prompt for this request")
         resume_p.add_argument("--json", action="store_true", help="Print JSON when listing or when returning a response")
@@ -204,6 +206,15 @@ def _validate_list_mode(command_name: str, *, list_requested: bool, name: str | 
         raise SystemExit(f"Cannot combine `grokx {command_name} --list` with a session name or prompt.")
 
 
+def _resolve_session_selector(command_name: str, *, positional_name: str | None, flag_name: str | None) -> str | None:
+    if positional_name and flag_name and positional_name != flag_name:
+        raise SystemExit(
+            f"Conflicting session selectors for `grokx {command_name}`. "
+            f"Use either the positional session name or `--session`, not both."
+        )
+    return flag_name or positional_name
+
+
 def _run_saved_session_prompt(
     settings: Settings,
     *,
@@ -349,20 +360,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command in {"side", "/side"}:
         store = _require_sessions_dir(settings)
         _validate_list_mode("side", list_requested=args.list, name=args.name, prompt=args.prompt)
+        session_name = _resolve_session_selector("side", positional_name=args.name, flag_name=args.session)
         if args.list:
             _print_session_summaries(store, as_json=args.json)
             return 0
-        if not args.name:
+        if not session_name:
             _print_legacy_session_listing_hint("side")
             _print_session_summaries(store, as_json=args.json)
             return 0
-        if args.name not in store.list_sessions():
-            raise SystemExit(f"Unknown session {args.name!r}. Run `grokx side` to see saved sessions.")
+        if session_name not in store.list_sessions():
+            raise SystemExit(f"Unknown session {session_name!r}. Run `grokx side --list` to see saved sessions.")
         if not args.prompt:
-            raise SystemExit(f"Missing prompt. Use `grokx side {args.name} \"...\"` to ask a temporary side question.")
+            raise SystemExit(
+                f"Missing prompt. Use `grokx side --session {session_name} \"...\"` "
+                "to ask a temporary side question."
+            )
         _run_side_session_prompt(
             settings,
-            session_name=args.name,
+            session_name=session_name,
             prompt=args.prompt,
             model=args.model,
             system=args.system,
@@ -374,20 +389,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command in {"resume", "/resume"}:
         store = _require_sessions_dir(settings)
         _validate_list_mode("resume", list_requested=args.list, name=args.name, prompt=args.prompt)
+        session_name = _resolve_session_selector("resume", positional_name=args.name, flag_name=args.session)
         if args.list:
             _print_session_summaries(store, as_json=args.json)
             return 0
-        if not args.name:
+        if not session_name:
             _print_legacy_session_listing_hint("resume")
             _print_session_summaries(store, as_json=args.json)
             return 0
-        if args.name not in store.list_sessions():
-            raise SystemExit(f"Unknown session {args.name!r}. Run `grokx resume` to see saved sessions.")
+        if session_name not in store.list_sessions():
+            raise SystemExit(f"Unknown session {session_name!r}. Run `grokx resume --list` to see saved sessions.")
         if not args.prompt:
-            raise SystemExit(f"Missing prompt. Use `grokx resume {args.name} \"...\"` to continue this session.")
+            raise SystemExit(
+                f"Missing prompt. Use `grokx resume --session {session_name} \"...\"` "
+                "to continue this session."
+            )
         _run_saved_session_prompt(
             settings,
-            session_name=args.name,
+            session_name=session_name,
             prompt=args.prompt,
             model=args.model,
             system=args.system,

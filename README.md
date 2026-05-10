@@ -276,8 +276,8 @@ Resume from the saved-session list without starting a new conversation:
 
 ```bash
 grokx resume --list
-grokx resume repo-help "继续，帮我把刚才的方案补完整"
-grokx /resume repo-help "继续处理上一次的问题"
+grokx resume --session repo-help "继续，帮我把刚才的方案补完整"
+grokx /resume --session repo-help "继续处理上一次的问题"
 ```
 
 `grokx resume` without arguments still lists saved sessions for compatibility, but `grokx resume --list` or `grokx session list --verbose` is the clearer form.
@@ -286,8 +286,8 @@ Ask a side question from an existing session without writing that branch back in
 
 ```bash
 grokx side --list
-grokx side repo-help "只讨论一下测试策略，不要改主线程上下文"
-grokx /side repo-help "先单独推演一下这个 edge case"
+grokx side --session repo-help "只讨论一下测试策略，不要改主线程上下文"
+grokx /side --session repo-help "先单独推演一下这个 edge case"
 ```
 
 `grokx side` without arguments still lists saved sessions for compatibility, but `grokx side --list` or `grokx session list --verbose` is the clearer form.
