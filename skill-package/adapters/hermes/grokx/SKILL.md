@@ -129,12 +129,35 @@ Default local paths:
 
 ## Agent Guidance
 
+- do not use `grokx` when local tools can answer the question directly
+- do not use `grokx` for trivial edits, formatting, or straightforward fact lookup from the local workspace
 - prefer `--no-stream` when the caller wants a single captured result
 - prefer `--json` when downstream code parses the response
+- prefer `ask --session <name>` when the target session is already known
+- prefer `resume` when the agent needs to rediscover, list, or reattach to an existing saved session
 - prefer named `--session` values for durable threads
 - prefer `new` for hard resets
-- prefer `side` for branch analysis
+- prefer `side` for branch analysis from an existing saved session
 - run `grokx health` before assuming a prompt or model failure
+
+## Prompt Packaging
+
+Before asking Grok for design review, debugging help, or implementation critique, compress the request into a structured prompt instead of dumping raw transcript.
+
+Default packaging shape:
+
+- background
+- current objective
+- confirmed constraints
+- relevant implementation details
+- the concrete question Grok should answer
+
+Additional rules:
+
+- do not paste the full shell transcript or full agent conversation unless the task explicitly requires it
+- include file paths, function names, or short code excerpts when the question depends on code context
+- ask for a bounded output shape when possible, such as risks, options, tradeoffs, or next steps
+- prefer one dense well-scoped prompt over several underspecified follow-ups
 
 ## Agent Workflow
 
@@ -162,6 +185,8 @@ Do not switch session names casually during the same task. Reuse the same main s
 ### 2. Use `side` for temporary branches
 
 When the agent wants a narrow exploration that should not pollute the main consultation record, use `grokx side`.
+
+`side` only works from an existing saved session. It is not a shortcut for starting a new thread.
 
 Typical cases:
 
@@ -241,20 +266,32 @@ Only use `grokx new --force` on an existing session name when the old thread is 
 
 Use this decision order:
 
-1. If the task has no existing Grok consultation thread, start or select a main named session.
-2. If the task is continuing the same line of reasoning, reuse the main session.
-3. If the question is exploratory and should not modify the main consultation history, use `side`.
-4. If the main consultation context is getting diluted, summarize and `new` a successor session.
-5. If the entire previous line of thought should be discarded, use `new --force`.
+1. If local tools can answer the question directly, do not call `grokx`.
+2. If the task has no existing Grok consultation thread, start or select a main named session.
+3. If the target session is already known and the task is continuing the same line of reasoning, use `ask --session <name>`.
+4. If the agent needs to find or reattach to an older saved thread, use `resume`.
+5. If the question is exploratory and should not modify the main consultation history, use `side`.
+6. If the main consultation context is getting diluted, summarize and `new` a successor session.
+7. If the entire previous line of thought should be discarded, use `new --force`.
+
+## Output Consumption
+
+Use output mode intentionally:
+
+- prefer `--no-stream` when the agent needs one complete answer to inspect or quote
+- prefer `--json` when another tool, script, or parser will consume the result
+- prefer plain streaming output only for interactive human reading or live monitoring
+- if the agent needs both persistence and machine-readable output, combine `--session` with `--no-stream` or `--json`
 
 ## Troubleshooting
 
 If `grokx` fails:
 
 1. Run `grokx health`
-2. Confirm `grok2api` is reachable at `GROKX_BASE_URL`
-3. Confirm `GROKX_API_KEY` is valid
-4. Run `grokx model list --all`
+2. Run `grokx session list` if the failure involves saved context or missing session state
+3. Run `grokx model list --all` if the failure may involve model availability or chat capability
+4. Confirm `grok2api` is reachable at `GROKX_BASE_URL`
+5. Confirm `GROKX_API_KEY` is valid
 
 If named conversations behave unexpectedly:
 

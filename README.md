@@ -352,6 +352,51 @@ cat plan.md | grokx ask "Review this plan and list the main risks"
 
 Call `grokx ask ...` as a subprocess from Codex CLI, Claude CLI, Hermes, or any shell-driven workflow.
 
+### Use from an agent session
+
+When an agent uses `grokx`, treat Grok as a bounded reviewer rather than a default solver.
+
+- do not call `grokx` when local tools can answer the question directly
+- do not call `grokx` for trivial edits, formatting, or straightforward local fact lookup
+- prefer `ask --session <name>` when continuing a known thread
+- prefer `resume` when the agent needs to rediscover or reattach to an older saved thread
+- prefer `side` only for branch analysis from an existing saved session
+- prefer `new` or `new --force` only when intentionally resetting context
+
+Before asking Grok for design review, debugging help, or implementation critique, package the prompt into:
+
+- background
+- current objective
+- confirmed constraints
+- relevant implementation details
+- the concrete question Grok should answer
+
+Do not dump the full shell transcript or raw agent conversation unless the task explicitly requires it. Include file paths, function names, or short code excerpts when the question depends on code context.
+
+For multi-turn work, use this decision order:
+
+1. If local tools can answer directly, do not call `grokx`.
+2. If there is no existing Grok consultation thread, start or select a main named session.
+3. If the task is continuing the same line of reasoning in a known thread, use `ask --session <name>`.
+4. If the agent needs to find or reattach to an older saved thread, use `resume`.
+5. If the question is exploratory and should not modify the main consultation history, use `side`.
+6. If the consultation context is getting diluted, summarize and start a successor session with `new`.
+7. If the previous line of thought should be discarded entirely, use `new --force`.
+
+For output handling:
+
+- prefer `--no-stream` when the agent needs one complete answer to inspect or quote
+- prefer `--json` when another tool or parser will consume the result
+- use plain streaming output mainly for interactive human reading
+
+For saved-session failures or odd behavior, use the shortest recovery path:
+
+```bash
+grokx health
+grokx session list
+grokx model list --all
+```
+
 ## Development
 
 Run tests:
