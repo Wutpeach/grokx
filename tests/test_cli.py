@@ -238,13 +238,11 @@ def test_resume_lists_saved_sessions(monkeypatch, tmp_path, capsys):
     assert cli.main(["ask", "another one", "--no-stream", "--session", "alpha"]) == 0
     capsys.readouterr()
 
-    assert cli.main(["resume"]) == 0
-    captured = capsys.readouterr()
-    lines = captured.out.strip().splitlines()
+    assert cli.main(["resume", "--list"]) == 0
+    lines = capsys.readouterr().out.strip().splitlines()
     assert len(lines) == 2
     assert any(line.startswith("demo\tturns=1\t") for line in lines)
     assert any(line.startswith("alpha\tturns=1\t") for line in lines)
-    assert "Prefer `grokx resume --list` or `grokx session list --verbose`." in captured.err
 
 
 def test_resume_list_flag_lists_saved_sessions(monkeypatch, tmp_path, capsys):
@@ -262,14 +260,26 @@ def test_resume_list_flag_lists_saved_sessions(monkeypatch, tmp_path, capsys):
     assert captured.err.strip() == ""
 
 
-def test_resume_list_flag_rejects_name_or_prompt(monkeypatch, tmp_path):
+def test_resume_without_session_or_list_fails(monkeypatch, tmp_path):
     settings = Settings(api_key="k", sessions_dir=tmp_path / "sessions", session_turn_limit=12)
     monkeypatch.setattr(cli, "load_settings", lambda: settings)
 
     try:
-        cli.main(["resume", "--list", "demo"])
+        cli.main(["resume"])
     except SystemExit as exc:
-        assert str(exc) == "Cannot combine `grokx resume --list` with a session name or prompt."
+        assert str(exc) == "Missing session name. Use `grokx resume --session <name> \"...\"` or `grokx resume --list`."
+    else:
+        raise AssertionError("Expected SystemExit")
+
+
+def test_resume_list_flag_rejects_session_or_prompt(monkeypatch, tmp_path):
+    settings = Settings(api_key="k", sessions_dir=tmp_path / "sessions", session_turn_limit=12)
+    monkeypatch.setattr(cli, "load_settings", lambda: settings)
+
+    try:
+        cli.main(["resume", "--list", "--session", "demo"])
+    except SystemExit as exc:
+        assert str(exc) == "Cannot combine `grokx resume --list` with `--session` or a prompt."
     else:
         raise AssertionError("Expected SystemExit")
 
@@ -282,7 +292,7 @@ def test_resume_command_continues_named_session(monkeypatch, tmp_path, capsys):
     assert cli.main(["ask", "hello world", "--no-stream", "--session", "demo", "--system", "be helpful"]) == 0
     capsys.readouterr()
 
-    exit_code = cli.main(["resume", "demo", "follow up", "--no-stream"])
+    exit_code = cli.main(["resume", "--session", "demo", "follow up", "--no-stream"])
 
     assert exit_code == 0
     assert capsys.readouterr().out.strip() == "SECOND"
@@ -308,23 +318,8 @@ def test_resume_command_supports_session_flag(monkeypatch, tmp_path, capsys):
     assert cli.main(["ask", "hello world", "--no-stream", "--session", "demo"]) == 0
     capsys.readouterr()
 
-    assert cli.main(["resume", "demo", "follow up", "--session", "demo", "--no-stream"]) == 0
+    assert cli.main(["resume", "--session", "demo", "follow up", "--no-stream"]) == 0
     assert capsys.readouterr().out.strip() == "SECOND"
-
-
-def test_resume_command_rejects_conflicting_session_selectors(monkeypatch, tmp_path):
-    settings = Settings(api_key="k", sessions_dir=tmp_path / "sessions", session_turn_limit=12)
-    monkeypatch.setattr(cli, "load_settings", lambda: settings)
-
-    try:
-        cli.main(["resume", "demo", "follow up", "--session", "alpha"])
-    except SystemExit as exc:
-        assert str(exc) == (
-            "Conflicting session selectors for `grokx resume`. "
-            "Use either the positional session name or `--session`, not both."
-        )
-    else:
-        raise AssertionError("Expected SystemExit")
 
 
 def test_slash_resume_alias_continues_named_session(monkeypatch, tmp_path, capsys):
@@ -335,7 +330,7 @@ def test_slash_resume_alias_continues_named_session(monkeypatch, tmp_path, capsy
     assert cli.main(["ask", "hello world", "--no-stream", "--session", "demo"]) == 0
     capsys.readouterr()
 
-    exit_code = cli.main(["/resume", "demo", "follow up", "--no-stream"])
+    exit_code = cli.main(["/resume", "--session", "demo", "follow up", "--no-stream"])
 
     assert exit_code == 0
     assert capsys.readouterr().out.strip() == "SECOND"
@@ -350,10 +345,8 @@ def test_side_lists_saved_sessions(monkeypatch, tmp_path, capsys):
     assert cli.main(["ask", "hello world", "--no-stream", "--session", "demo"]) == 0
     capsys.readouterr()
 
-    assert cli.main(["side"]) == 0
-    captured = capsys.readouterr()
-    assert captured.out.strip().splitlines()[0].startswith("demo\tturns=1\t")
-    assert "Prefer `grokx side --list` or `grokx session list --verbose`." in captured.err
+    assert cli.main(["side", "--list"]) == 0
+    assert capsys.readouterr().out.strip().splitlines()[0].startswith("demo\tturns=1\t")
 
 
 def test_side_list_flag_lists_saved_sessions(monkeypatch, tmp_path, capsys):
@@ -371,14 +364,26 @@ def test_side_list_flag_lists_saved_sessions(monkeypatch, tmp_path, capsys):
     assert captured.err.strip() == ""
 
 
-def test_side_list_flag_rejects_name_or_prompt(monkeypatch, tmp_path):
+def test_side_without_session_or_list_fails(monkeypatch, tmp_path):
     settings = Settings(api_key="k", sessions_dir=tmp_path / "sessions", session_turn_limit=12)
     monkeypatch.setattr(cli, "load_settings", lambda: settings)
 
     try:
-        cli.main(["side", "--list", "demo"])
+        cli.main(["side"])
     except SystemExit as exc:
-        assert str(exc) == "Cannot combine `grokx side --list` with a session name or prompt."
+        assert str(exc) == "Missing session name. Use `grokx side --session <name> \"...\"` or `grokx side --list`."
+    else:
+        raise AssertionError("Expected SystemExit")
+
+
+def test_side_list_flag_rejects_session_or_prompt(monkeypatch, tmp_path):
+    settings = Settings(api_key="k", sessions_dir=tmp_path / "sessions", session_turn_limit=12)
+    monkeypatch.setattr(cli, "load_settings", lambda: settings)
+
+    try:
+        cli.main(["side", "--list", "--session", "demo"])
+    except SystemExit as exc:
+        assert str(exc) == "Cannot combine `grokx side --list` with `--session` or a prompt."
     else:
         raise AssertionError("Expected SystemExit")
 
@@ -392,7 +397,7 @@ def test_side_command_uses_saved_context_without_mutating_session(monkeypatch, t
     assert cli.main(["ask", "hello world", "--no-stream", "--session", "demo", "--system", "be helpful"]) == 0
     capsys.readouterr()
 
-    exit_code = cli.main(["side", "demo", "temporary branch", "--no-stream"])
+    exit_code = cli.main(["side", "--session", "demo", "temporary branch", "--no-stream"])
 
     assert exit_code == 0
     assert capsys.readouterr().out.strip() == "SECOND"
@@ -409,7 +414,7 @@ def test_side_command_uses_saved_context_without_mutating_session(monkeypatch, t
         ],
     )
 
-    resume_exit_code = cli.main(["resume", "demo", "follow up", "--no-stream"])
+    resume_exit_code = cli.main(["resume", "--session", "demo", "follow up", "--no-stream"])
 
     assert resume_exit_code == 0
     assert capsys.readouterr().out.strip() == "THIRD"
@@ -436,23 +441,8 @@ def test_side_command_supports_session_flag(monkeypatch, tmp_path, capsys):
     assert cli.main(["ask", "hello world", "--no-stream", "--session", "demo"]) == 0
     capsys.readouterr()
 
-    assert cli.main(["side", "demo", "temporary branch", "--session", "demo", "--no-stream"]) == 0
+    assert cli.main(["side", "--session", "demo", "temporary branch", "--no-stream"]) == 0
     assert capsys.readouterr().out.strip() == "SECOND"
-
-
-def test_side_command_rejects_conflicting_session_selectors(monkeypatch, tmp_path):
-    settings = Settings(api_key="k", sessions_dir=tmp_path / "sessions", session_turn_limit=12)
-    monkeypatch.setattr(cli, "load_settings", lambda: settings)
-
-    try:
-        cli.main(["side", "demo", "temporary branch", "--session", "alpha"])
-    except SystemExit as exc:
-        assert str(exc) == (
-            "Conflicting session selectors for `grokx side`. "
-            "Use either the positional session name or `--session`, not both."
-        )
-    else:
-        raise AssertionError("Expected SystemExit")
 
 
 def test_slash_side_alias_works(monkeypatch, tmp_path, capsys):
@@ -464,7 +454,7 @@ def test_slash_side_alias_works(monkeypatch, tmp_path, capsys):
     assert cli.main(["ask", "hello world", "--no-stream", "--session", "demo"]) == 0
     capsys.readouterr()
 
-    exit_code = cli.main(["/side", "demo", "temporary branch", "--no-stream"])
+    exit_code = cli.main(["/side", "--session", "demo", "temporary branch", "--no-stream"])
 
     assert exit_code == 0
     assert capsys.readouterr().out.strip() == "SECOND"
