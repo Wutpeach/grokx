@@ -1,0 +1,8 @@
+{
+  "name": "grokx-skill",
+  "version": "1.0.0",
+  "description": "Claude Code plugin that adds a grokx skill for local grok2api CLI workflows",
+  "author": {
+    "name": "Mabel"
+  }
+}

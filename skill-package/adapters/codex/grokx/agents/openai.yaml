@@ -1,0 +1,4 @@
+interface:
+  display_name: "grokx"
+  short_description: "Talk to a local grok2api service through the grokx CLI"
+  default_prompt: "Use grokx for local Grok CLI workflows, named sessions, side-thread questions, model probing, and grok2api health checks."
